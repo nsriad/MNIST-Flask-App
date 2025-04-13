@@ -11,4 +11,15 @@ This is a simple web application that uses a Convolutional Neural Network (CNN) 
 
 ## Project Structure
 
-<pre> ```plaintext mnist_flask_app/ │ ├── app.py ← Flask backend ├── mnist_cnn.onnx ← exported ONNX model ├── samples_images/ ← Random 5 MNIST images ├── WebPage/ │ └── index.html ← HTML for upload & prediction ├── utils.py ← helper functions ├── requirements.txt ← libraries needed └── README.md ← how to run the app ``` </pre>
+<pre> ```
+mnist_flask_app/
+│
+├── app.py              ← Flask backend
+├── mnist_cnn.onnx      ← exported ONNX model
+├── samples_images/     ← Random 5 MNIST images
+├── WebPage/
+│   └── index.html      ← HTML for upload & prediction
+├── utils.py            ← helper functions
+├── requirements.txt    ← libraries needed
+└── README.md           ← how to run the app
+``` </pre>
