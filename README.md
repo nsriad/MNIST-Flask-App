@@ -11,7 +11,7 @@ This is a simple web application that uses a Convolutional Neural Network (CNN) 
 
 ## Project Structure
 
-mnist_flask_app/
+mnist_flask_app/  
 │
 ├── app.py  
 ├── mnist_cnn.onnx               ← exported ONNX model  
