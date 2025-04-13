@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>MNIST Digit Classifier</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: #f5f5f5;
+    }
+
+    header {
+      text-align: center;
+      padding: 20px;
+      background-color: #0077cc;
+      color: white;
+    }
+
+    .container {
+      display: flex;
+      justify-content: space-around;
+      align-items: flex-start;
+      padding: 20px;
+      flex-wrap: wrap;
+    }
+
+    .left-panel, .right-panel {
+      background-color: white;
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      padding: 20px;
+      width: 400px;
+      min-height: 250px;
+    }
+
+    .right-panel {
+      text-align: center;
+    }
+
+    .full-width {
+      width: 100%;
+      margin-top: 30px;
+      padding: 20px;
+      background-color: #ffffff;
+      text-align: center;
+      border-top: 1px solid #ccc;
+    }
+
+    input[type="file"] {
+      margin-bottom: 10px;
+    }
+
+    button {
+      padding: 10px 20px;
+      background-color: #0077cc;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    button:disabled {
+      background-color: gray;
+      cursor: not-allowed;
+    }
+
+    img {
+      width: 100px;
+      margin: 10px;
+      border: 2px solid #ccc;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+
+    .preview-img {
+      display: block;
+      margin: 10px auto;
+      width: 140px;
+    }
+
+    canvas {
+      max-width: 100%;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h2>MNIST Digit Classifier</h2>
+  </header>
+
+  <div class="container">
+    <!-- Left Panel: Upload -->
+    <div class="left-panel">
+      <h3>Upload Image</h3>
+      <input type="file" id="fileInput" accept="image/*"><br>
+      <img id="previewImage" class="preview-img" src="#" alt="Preview" style="display:none;">
+      <button id="predictBtn" disabled>Predict</button>
+    </div>
+
+    <!-- Right Panel: Result -->
+    <div class="right-panel">
+      <h3 id="resultText">Prediction will appear here</h3>
+      <canvas id="confidenceChart"></canvas>
+    </div>
+  </div>
+
+  <!-- Sample Images -->
+  <div class="full-width">
+    <h3>Sample MNIST Images. You can pick one by click on it instead of uploading one.</h3>
+    <div id="sampleContainer"></div>
+  </div>
+
+  <script>
+    const fileInput = document.getElementById("fileInput");
+    const predictBtn = document.getElementById("predictBtn");
+    const previewImage = document.getElementById("previewImage");
+    const resultText = document.getElementById("resultText");
+    const chartCtx = document.getElementById("confidenceChart").getContext("2d");
+    const sampleContainer = document.getElementById("sampleContainer");
+
+    let selectedFile = null;
+    let chart = null;
+
+    const sampleImages = [
+      "sample_0.png", "sample_1.png", "sample_2.png",
+      "sample_3.png", "sample_4.png", "sample_6.png",
+      "sample_7.png", "sample_8.png", "sample_9.png",
+      "sample_10.png", "sample_11.png", "sample_12.png"
+    ];
+
+    // Add sample images
+    sampleImages.forEach(filename => {
+      const img = document.createElement("img");
+      img.src = `/sample_images/${filename}`;
+      img.alt = filename;
+      img.onclick = () => {
+        fetch(`/sample_images/${filename}`)
+          .then(res => res.blob())
+          .then(blob => {
+            const reader = new FileReader();
+            reader.onload = function () {
+              const arrayBuffer = this.result;
+              const fixedBlob = new Blob([arrayBuffer], { type: "image/png" });
+              const file = new File([fixedBlob], filename, { type: "image/png" });
+
+              selectedFile = file;
+              previewFile(file);
+              predictBtn.disabled = false;
+            };
+            reader.readAsArrayBuffer(blob);
+          });
+      };
+      sampleContainer.appendChild(img);
+    });
+
+    // File input handler
+    fileInput.addEventListener("change", () => {
+      const file = fileInput.files[0];
+      if (!file || !file.type.startsWith("image/")) {
+        alert("Please upload a valid image file.");
+        fileInput.value = "";
+        previewImage.style.display = "none";
+        predictBtn.disabled = true;
+        return;
+      }
+
+      selectedFile = file;
+      previewFile(file);
+      predictBtn.disabled = false;
+    });
+
+    function previewFile(file) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        previewImage.src = reader.result;
+        previewImage.style.display = "block";
+      };
+      reader.readAsDataURL(file);
+    }
+
+    // Predict button handler
+    predictBtn.addEventListener("click", () => {
+      if (!selectedFile) return;
+
+      const formData = new FormData();
+      formData.append("file", selectedFile);
+
+      fetch("/predict", {
+        method: "POST",
+        body: formData
+      })
+        .then(res => res.json())
+        .then(data => {
+          if (data.error) {
+            resultText.innerText = "Error: " + data.error;
+            return;
+          }
+
+          resultText.innerText = `Predicted Digit: ${data.prediction}`;
+          const labels = Object.keys(data.confidence);
+          const values = Object.values(data.confidence);
+
+          if (chart) chart.destroy();
+          chart = new Chart(chartCtx, {
+            type: "bar",
+            data: {
+              labels: labels,
+              datasets: [{
+                label: "Confidence",
+                data: values,
+                backgroundColor: "rgba(0, 123, 255, 0.6)"
+              }]
+            },
+            options: {
+              scales: {
+                y: {
+                  beginAtZero: true,
+                  max: 1
+                }
+              }
+            }
+          });
+        })
+        .catch(err => {
+          resultText.innerText = "Prediction failed.";
+          console.error(err);
+        });
+    });
+  </script>
+
+</body>
+</html>
+
